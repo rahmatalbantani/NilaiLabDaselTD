@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Display CSV Data in HTML</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+        }
+        label {
+            margin-right: 10px;
+        }
+        table {
+            border-collapse: collapse;
+            width: 100%;
+            margin-top: 20px;
+        }
+        th, td {
+            border: 1px solid #dddddd;
+            text-align: left;
+            padding: 8px;
+        }
+        th {
+            background-color: #f2f2f2;
+        }
+        #error-message {
+            color: red;
+            margin-top: 10px;
+        }
+    </style>
+</head>
+<body>
+
+    <label for="nim">NIM:</label>
+    <input type="text" id="nim">
+    <button onclick="displayData()">Tampilkan Data</button>
+
+    <h2>Data Mahasiswa</h2>
+    <table>
+        <thead>
+            <tr>
+                <th>NIM</th>
+                <th>Nama</th>
+                <th>Nilai Unit 1</th>
+                <th>Nilai Unit 2</th>
+                <!-- Tambahkan kolom untuk nilai Unit 3 hingga Unit 8 sesuai kebutuhan -->
+            </tr>
+        </thead>
+        <tbody id="data-container">
+            <!-- Tempat untuk menampilkan data -->
+        </tbody>
+    </table>
+
+    <p id="error-message"></p>
+
+    <script>
+        function displayData() {
+            var nimInput = document.getElementById('nim').value.trim();
+            var dataContainer = document.getElementById('data-container');
+            var errorMessage = document.getElementById('error-message');
+
+            fetch('data.csv')
+                .then(response => response.text())
+                .then(data => {
+                    var rows = data.split('\n');
+                    var dataFound = false;
+
+                    for (var i = 1; i < rows.length; i++) {
+                        var cells = rows[i].split(',');
+                        var nim = cells[0].trim();
+
+                        if (nim == nimInput) {
+                            var row = document.createElement('tr');
+                            cells.forEach(value => {
+                                var cell = document.createElement('td');
+                                cell.textContent = value;
+                                row.appendChild(cell);
+                            });
+
+                            dataContainer.innerHTML = ''; // Clear existing data
+                            dataContainer.appendChild(row);
+                            errorMessage.textContent = ''; // Clear existing error message
+                            dataFound = true;
+                            break;
+                        }
+                    }
+
+                    if (!dataFound) {
+                        // Jika NIM tidak ditemukan
+                        dataContainer.innerHTML = '';
+                        errorMessage.textContent = 'Data tidak ditemukan';
+                    }
+                })
+                .catch(error => {
+                    console.error(error);
+                    errorMessage.textContent = 'Terjadi kesalahan saat mengambil data';
+                });
+        }
+    </script>
+</body>
+</html>
