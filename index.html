@@ -3,100 +3,255 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Display CSV Data in HTML</title>
+    <title>Transparansi Nilai Praktikum Teknik Digital</title>
+    <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.17.4/xlsx.full.min.js"></script>
     <style>
         body {
-            font-family: Arial, sans-serif;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             margin: 20px;
+            background-color: #f7f7f7;
+            color: #333;
         }
-        label {
-            margin-right: 10px;
+
+        h1 {
+            text-align: center;
+            margin-bottom: 10px;
+            color: #004080;
         }
+
+        #filterContainer {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background-color: #ffffff;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 0 15px rgba(0, 0, 0, 0.1);
+        }
+
+        input {
+            width: calc(100% - 20px);
+            margin: 10px;
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+        }
+
+        button {
+            width: calc(100% - 20px);
+            padding: 10px;
+            background-color: #004080;
+            color: #ffffff;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+
+        button:hover {
+            background-color: #003366;
+        }
+
         table {
             border-collapse: collapse;
             width: 100%;
             margin-top: 20px;
+            background-color: #ffffff;
+            box-shadow: 0 0 15px rgba(0, 0, 0, 0.1);
+            border-radius: 8px;
+            overflow: hidden;
         }
+
         th, td {
             border: 1px solid #dddddd;
-            text-align: left;
-            padding: 8px;
+            text-align: center;
+            padding: 10px;
+            transition: background-color 0.3s, color 0.3s;
         }
+
         th {
-            background-color: #f2f2f2;
+            background-color: #004080;
+            color: #ffffff;
+            cursor: pointer;
         }
-        #error-message {
+
+        th:hover {
+            background-color: #003366;
+        }
+
+        td {
+            font-size: 14px;
+            font-weight: bold;
+            text-transform: capitalize;
+        }
+
+        td.zero {
             color: red;
+        }
+
+        /* Tambahkan warna latar belakang kuning untuk sel dengan header "Nilai Akhir" */
+        th[data-header="Nilai Akhir"] {
+            background-color: #ffe600;
+            color: #333;
+            font-weight: bold;
+        }
+
+        /* Tambahkan warna latar belakang untuk sel dengan header yang mengandung kata "Total" */
+        th[data-header*="Total"]:not([data-header="Nilai Akhir"]) {
+            background-color: #4caf50;
+            color: white;
+        }
+
+        td:hover {
+            background-color: #f5f5f5;
+        }
+
+        .warning {
+            text-align: center;
+            color: red;
+            font-weight: bold;
+            margin-top: 10px;
+        }
+
+        .note {
+            text-align: center;
+            color: #555;
+            font-size: 12px;
             margin-top: 10px;
         }
     </style>
 </head>
 <body>
+    <h1>Transparansi Nilai Praktikum Teknik Digital</h1>
 
-    <label for="nim">NIM:</label>
-    <input type="text" id="nim">
-    <button onclick="displayData()">Tampilkan Data</button>
+    <div id="filterContainer">
+        <input type="text" id="nim" placeholder="Masukkan NIM" />
+        <input type="text" id="kodeUnik" placeholder="Masukkan Kode Unik" />
+        <button onclick="filterData()">Filter</button>
+        <div class="note">
+            Isi kode unik dengan format: Tanggal-Bulan-Tahun<br/>
+            Contoh: 9-12-2021 atau 27-5-2003<br/>
+            Sesuaikan dengan data yang anda isi di form gform,<br/>
+            Kesalahan input mengakibatkan gagal dalam transparansi nilai anda.
+        </div>
+    </div>
 
-    <h2>Data Mahasiswa</h2>
     <table>
-        <thead>
-            <tr>
-                <th>NIM</th>
-                <th>Nama</th>
-                <th>Nilai Unit 1</th>
-                <th>Nilai Unit 2</th>
-                <!-- Tambahkan kolom untuk nilai Unit 3 hingga Unit 8 sesuai kebutuhan -->
-            </tr>
+        <thead id="headerRow">
+            <!-- Kolom header akan ditambahkan dinamis di sini -->
         </thead>
-        <tbody id="data-container">
-            <!-- Tempat untuk menampilkan data -->
+        <tbody id="resultBody">
+            <!-- Data akan ditampilkan di sini -->
         </tbody>
     </table>
 
-    <p id="error-message"></p>
+    <div id="warningMessage" class="warning"></div>
 
     <script>
-        function displayData() {
-            var nimInput = document.getElementById('nim').value.trim();
-            var dataContainer = document.getElementById('data-container');
-            var errorMessage = document.getElementById('error-message');
+        var jsonData;
+        var currentFilterNIM;
+        var currentFilterKodeUnik;
 
-            fetch('data.csv')
-                .then(response => response.text())
-                .then(data => {
-                    var rows = data.split('\n');
-                    var dataFound = false;
+        function filterData() {
+            var nimFilter = document.getElementById("nim").value;
+            var kodeUnikFilter = document.getElementById("kodeUnik").value;
 
-                    for (var i = 1; i < rows.length; i++) {
-                        var cells = rows[i].split(',');
-                        var nim = cells[0].trim();
+            // Memeriksa apakah kedua input sudah diisi
+            if (!nimFilter || !kodeUnikFilter) {
+                alert("Mohon isi NIM dan Kode Unik sebelum melakukan filter.");
+                return;
+            }
 
-                        if (nim == nimInput) {
-                            var row = document.createElement('tr');
-                            cells.forEach(value => {
-                                var cell = document.createElement('td');
-                                cell.textContent = value;
-                                row.appendChild(cell);
-                            });
+            // Mendapatkan nama file Excel dari direktori yang sama
+            var fileName = 'data.xlsx';
 
-                            dataContainer.innerHTML = ''; // Clear existing data
-                            dataContainer.appendChild(row);
-                            errorMessage.textContent = ''; // Clear existing error message
-                            dataFound = true;
-                            break;
-                        }
-                    }
+            // Mendapatkan path file Excel dari direktori yang sama
+            var filePath = window.location.href.replace(/\/[^\/]*$/, '/' + fileName);
 
-                    if (!dataFound) {
-                        // Jika NIM tidak ditemukan
-                        dataContainer.innerHTML = '';
-                        errorMessage.textContent = 'Data tidak ditemukan';
-                    }
-                })
-                .catch(error => {
-                    console.error(error);
-                    errorMessage.textContent = 'Terjadi kesalahan saat mengambil data';
+            var xhr = new XMLHttpRequest();
+            xhr.open('GET', filePath, true);
+            xhr.responseType = 'arraybuffer';
+
+            xhr.onload = function (e) {
+                var data = new Uint8Array(xhr.response);
+                var workbook = XLSX.read(data, { type: 'array' });
+                var sheetName = workbook.SheetNames[0];
+                var sheet = workbook.Sheets[sheetName];
+
+                jsonData = XLSX.utils.sheet_to_json(sheet, { header: 2 });
+
+                var headerRow = document.getElementById("headerRow");
+                headerRow.innerHTML = "";
+                for (var key in jsonData[0]) {
+                    var th = document.createElement("th");
+                    th.textContent = key;
+                    th.setAttribute("data-header", key); // Tambahkan atribut untuk identifikasi header
+                    headerRow.appendChild(th);
+                }
+
+                currentFilterNIM = nimFilter;
+                currentFilterKodeUnik = kodeUnikFilter;
+                var filteredData = jsonData.filter(function (row) {
+                    return row.NIM == nimFilter && row['Tanggal Lahir'] == kodeUnikFilter;
                 });
+
+                displayResult(filteredData);
+            };
+
+            xhr.send();
+        }
+
+        function displayResult(data) {
+            var resultBody = document.getElementById("resultBody");
+            var warningMessage = document.getElementById("warningMessage");
+            resultBody.innerHTML = "";
+            warningMessage.textContent = "";
+
+            if (data.length === 0) {
+                var nimExists = jsonData.some(function (row) {
+                    return row.NIM == currentFilterNIM;
+                });
+
+                if (!nimExists) {
+                    warningMessage.textContent = `Data tidak ditemukan untuk NIM: ${currentFilterNIM}`;
+                } else {
+                    warningMessage.textContent = `Data tidak ditemukan untuk Tanggal Lahir: ${currentFilterKodeUnik}`;
+                }
+
+                return;
+            }
+
+            for (var i = 0; i < data.length; i++) {
+                var row = data[i];
+                var newRow = document.createElement("tr");
+
+                for (var key in jsonData[0]) {
+                    var cell = document.createElement("td");
+
+                    // Mengonversi nilai teks menjadi angka dengan penanganan kesalahan
+                    var value = parseFloat(row[key]);
+
+                    if (!isNaN(value)) {
+                        // Jika angka di belakang koma tidak nol, tambahkan koma
+                        var formattedValue = value % 1 !== 0 ? value.toFixed(2) : value.toFixed(0);
+
+                        cell.textContent = formattedValue;
+                        if (cell.textContent === '0.00') {
+                            cell.classList.add('zero');
+                        }
+                    } else {
+                        // Jika konversi gagal, gunakan teks asli
+                        cell.textContent = row[key] || ''; // Jika teks asli kosong, gunakan string kosong
+                    }
+
+                    newRow.appendChild(cell);
+                }
+
+                resultBody.appendChild(newRow);
+            }
         }
     </script>
 </body>
