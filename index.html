@@ -98,7 +98,11 @@
             color: #333;
             font-weight: bold;
         }
-
+        th[data-header="GRADE"] {
+            background-color: #b700ff;
+            color: #c6e900;
+            font-weight: bold;
+        }
         /* Tambahkan warna latar belakang untuk sel dengan header yang mengandung kata "Total" */
         th[data-header*="Total"]:not([data-header="Nilai Akhir"]) {
             background-color: #4caf50;
@@ -239,7 +243,7 @@
                         var formattedValue = value % 1 !== 0 ? value.toFixed(2) : value.toFixed(0);
 
                         cell.textContent = formattedValue;
-                        if (cell.textContent === '0.00') {
+                        if (parseFloat(formattedValue) === 0) {
                             cell.classList.add('zero');
                         }
                     } else {
